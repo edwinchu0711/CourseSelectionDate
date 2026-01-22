@@ -99,6 +99,9 @@ def process_and_save():
         "結束時間": "2/2(一) 17:00"
       }}
       不需要其他資訊，就這樣簡單就好，每個項目裡面就只有時間，不要有其他子元素
+      並且最後再加上一個"更新時間":{
+      (現在的日期和時間(UTC +8))
+      }
     """
 
     response = client.models.generate_content(
