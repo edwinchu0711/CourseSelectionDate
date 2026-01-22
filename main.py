@@ -27,7 +27,7 @@ def init_firebase():
 
 def get_dynamic_pdf_url():
     headers = {"User-Agent": "Mozilla/5.0"}
-    base_url = "[https://selcrs.nsysu.edu.tw/](https://selcrs.nsysu.edu.tw/)"
+    base_url = "https://selcrs.nsysu.edu.tw/"
     try:
         res = requests.get(base_url, headers=headers, timeout=10)
         res.encoding = 'utf-8'
@@ -40,7 +40,7 @@ def get_dynamic_pdf_url():
                 break
         
         if not next_link:
-            next_link = "[https://oaa.nsysu.edu.tw/p/405-1003-20388,c2935.php?Lang=zh-tw](https://oaa.nsysu.edu.tw/p/405-1003-20388,c2935.php?Lang=zh-tw)"
+            next_link = "https://oaa.nsysu.edu.tw/p/405-1003-20388,c2935.php?Lang=zh-tw"
         
         res = requests.get(next_link, headers=headers, timeout=10)
         res.encoding = 'utf-8'
@@ -49,7 +49,7 @@ def get_dynamic_pdf_url():
         for a in soup.find_all('a', href=True):
             if ".pdf" in a['href'].lower() and "選課須知" in a.get_text():
                 pdf_url = a['href']
-                return "[https://oaa.nsysu.edu.tw](https://oaa.nsysu.edu.tw)" + pdf_url if pdf_url.startswith('/') else pdf_url
+                return "https://oaa.nsysu.edu.tw" + pdf_url if pdf_url.startswith('/') else pdf_url
         return None
     except Exception as e:
         print(f"爬蟲錯誤: {e}")
