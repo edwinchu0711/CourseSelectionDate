@@ -119,26 +119,38 @@ def process_and_save():
 
 
     # 3. 解析 JSON 並寫入 Firebase
+    # 3. 解析 JSON 並寫入 Firebase
     try:
         raw_text = response.text.strip()
-        # 清洗可能出現的 Markdown 代碼塊標籤
         clean_json = raw_text.replace("```json", "").replace("```", "").strip()
         data_dict = json.loads(clean_json)
         
-        db = init_firebase()
-        if db:
-            db.collection("course_schedules").document("latest").set({
-                "data": data_dict,
-                "source_url": pdf_url,
-                "updated_at": firestore.SERVER_TIMESTAMP
-            })
-            print("✅ 資料已成功存入 Firebase")
+        # 檢查資料完整性 (檢查 key 的數量或特定 key 是否存在)
+        # 假設你定義的項目共有 16 項
+        required_count = 10 # 你可以根據實際需求設定門檻
+        if len(data_dict) >= required_count:
+            db = init_firebase()
+            if db:
+                # 取得集合路徑：CourseSelectionDate
+                # 這裡使用固定 ID 'current_info' 進行覆寫，達到「刪除舊的、寫入最新」的效果
+                doc_ref = db.collection("CourseSelectionDate").document("latest")
+                
+                # 直接使用 set 會覆蓋掉該文件原本的所有內容
+                doc_ref.set({
+                    "data": data_dict,
+                    "source_url": pdf_url,
+                    "metadata": {
+                        "update_time": firestore.SERVER_TIMESTAMP,
+                        "item_count": len(data_dict),
+                        "status": "complete"
+                    }
+                })
+                print(f"✅ 資料完整（共 {len(data_dict)} 項），已更新至 Firebase")
+        else:
+            print(f"⚠️ 資料不完整（僅抓到 {len(data_dict)} 項），取消寫入以保護舊資料")
             
-        # 清理 Gemini 上的檔案 (選用)
-        client.files.delete(name=uploaded_file.name)
-        
     except Exception as e:
-        print(f"解析或儲存錯誤: {e}")
+        print(f"❌ 發生錯誤: {e}")
 
 @app.route('/')
 def index():
@@ -154,3 +166,6 @@ def run_scraper():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
+
+
