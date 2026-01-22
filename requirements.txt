@@ -4,3 +4,5 @@ requests
 firebase-admin
 flask
 gunicorn
+selenium
+webdriver-manager

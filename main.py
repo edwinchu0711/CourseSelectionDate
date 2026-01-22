@@ -9,6 +9,13 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from google.genai import types
 from google import genai
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 app = Flask(__name__)
 
@@ -26,35 +33,55 @@ def init_firebase():
     return firestore.client()
 
 def get_dynamic_pdf_url():
-    headers = {"User-Agent": "Mozilla/5.0"}
-    base_url = "https://selcrs.nsysu.edu.tw/"
+    # --- Selenium 設定 ---
+    chrome_options = Options()
+    chrome_options.add_argument("--headless") # 不開啟視窗
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--ignore-certificate-errors") # 忽略 SSL 錯誤
+    
+    # 初始化 WebDriver
     try:
-        res = requests.get(base_url, headers=headers, timeout=10 ,verify=False)
-        res.encoding = 'utf-8'
-        soup = BeautifulSoup(res.text, 'html.parser')
+        driver_path = ChromeDriverManager().install()
+        service = Service(driver_path)
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+    except Exception as e:
+        print(f"驅動安裝失敗，嘗試預設路徑: {e}")
+        driver = webdriver.Chrome(options=chrome_options) # 嘗試依賴系統路徑
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+    
+    base_url = "https://selcrs.nsysu.edu.tw/"
+    
+    try:
+        print(f"正在訪問: {base_url}")
+        driver.get(base_url)
         
-        next_link = ""
-        for a in soup.find_all('a', href=True):
-            if "選課須知" in a.get_text():
-                next_link = a['href']
-                break
+        # 等待「選課須知」連結出現並點擊
+        # 注意：中山選課系統有時在 Frame 裡，但這裡先嘗試直接尋找
+        wait = WebDriverWait(driver, 10)
+        link_element = wait.until(EC.presence_of_element_located((By.PARTIAL_LINK_TEXT, "選課須知")))
+        next_url = link_element.get_attribute("href")
         
-        if not next_link:
-            next_link = "https://oaa.nsysu.edu.tw/p/405-1003-20388,c2935.php?Lang=zh-tw"
+        print(f"跳轉至: {next_url}")
+        driver.get(next_url)
         
-        res = requests.get(next_link, headers=headers, timeout=10 ,verify=False)
-        res.encoding = 'utf-8'
-        soup = BeautifulSoup(res.text, 'html.parser')
+        # 尋找包含 .pdf 且文字包含「選課須知」的連結
+        time.sleep(3) # 給網頁一點時間渲染
+        pdf_links = driver.find_elements(By.TAG_NAME, "a")
         
-        for a in soup.find_all('a', href=True):
-            if ".pdf" in a['href'].lower() and "選課須知" in a.get_text():
-                pdf_url = a['href']
-                return "https://oaa.nsysu.edu.tw" + pdf_url if pdf_url.startswith('/') else pdf_url
+        for link in pdf_links:
+            href = link.get_attribute("href")
+            text = link.text
+            if href and ".pdf" in href.lower() and "選課須知" in text:
+                print(f"✅ 找到 PDF: {href}")
+                return href
+                
         return None
     except Exception as e:
-        print(f"爬蟲錯誤: {e}")
+        print(f"Selenium 爬蟲錯誤: {e}")
         return None
-
+    finally:
+        driver.quit() # 務必關閉瀏覽器，否則會吃掉 Render 的記憶體
 def process_and_save():
     print("🚀 開始執行自動化流程...")
     
