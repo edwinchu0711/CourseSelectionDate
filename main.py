@@ -97,7 +97,7 @@ def process_and_save():
     # 3. AI 處理 (Gemini)
     try:
         client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-        uploaded_file = client.files.upload(path=pdf_filename)
+        uploaded_file = client.files.upload(file=pdf_filename)
         
         # 等待 AI 處理文件
         while uploaded_file.state.name == "PROCESSING":
