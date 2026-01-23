@@ -141,39 +141,18 @@ def process_and_save():
     )
 
 
-    # 3. 解析 JSON 並寫入 Firebase
-    # 3. 解析 JSON 並寫入 Firebase
     try:
         raw_text = response.text.strip()
-        clean_json = raw_text.replace("```json", "").replace("```", "").strip()
-        data_dict = json.loads(clean_json)
-        
-        # 檢查資料完整性 (檢查 key 的數量或特定 key 是否存在)
-        # 假設你定義的項目共有 16 項
-        required_count = 10 # 你可以根據實際需求設定門檻
-        if len(data_dict) >= required_count:
-            db = init_firebase()
-            if db:
-                # 取得集合路徑：CourseSelectionDate
-                # 這裡使用固定 ID 'current_info' 進行覆寫，達到「刪除舊的、寫入最新」的效果
-                doc_ref = db.collection("CourseSelectionDate").document("latest")
-                
-                # 直接使用 set 會覆蓋掉該文件原本的所有內容
-                doc_ref.set({
-                    "data": data_dict,
-                    "source_url": pdf_url,
-                    "metadata": {
-                        "update_time": firestore.SERVER_TIMESTAMP,
-                        "item_count": len(data_dict),
-                        "status": "complete"
-                    }
-                })
-                print(f"✅ 資料完整（共 {len(data_dict)} 項），已更新至 Firebase")
-        else:
-            print(f"⚠️ 資料不完整（僅抓到 {len(data_dict)} 項），取消寫入以保護舊資料")
-            
-    except Exception as e:
-        print(f"❌ 發生錯誤: {e}")
+        data_dict = json.loads(raw_text)
+        # 加上來源資訊
+        result = {
+            "data": data_dict,
+            "source_url": pdf_url,
+            "update_time": datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
+        }
+        return result
+    except:
+        return None
 
 @app.route('/test')
 def index():
@@ -181,8 +160,15 @@ def index():
 
 @app.route('/run')
 def run_scraper():
-    threading.Thread(target=process_and_save).start()
-    return "Scraper Task Started!"
+    # 移除 threading，改為直接執行並取得結果
+    try:
+        data = process_and_save() 
+        if data:
+            return json.dumps(data, ensure_ascii=False), 200, {'Content-Type': 'application/json'}
+        else:
+            return "Failed to extract data", 500
+    except Exception as e:
+        return str(e), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
