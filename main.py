@@ -166,6 +166,7 @@ def process_and_save():
 
 @app.route('/test')
 def index():
+    print("已啟動")
     return "Course Scraper is online. Use /run to trigger."
 
 # @app.route('/run')
@@ -184,18 +185,23 @@ def index():
 def run_scraper():
     # 改回非同步：立刻回傳，讓爬蟲在背景跑
     threading.Thread(target=process_and_save).start()
+    print("開始run")
     return "Task Started", 202
     
 @app.route('/get_data')
 def get_data():
+    print("已要求資料")
     global last_scraped_data
     if last_scraped_data:
+        print("已給資料")
         return json.dumps(last_scraped_data, ensure_ascii=False), 200, {'Content-Type': 'application/json'}
+    print("未給資料")
     return "Data not ready yet", 404
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
