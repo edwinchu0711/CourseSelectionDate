@@ -5,6 +5,7 @@ import requests
 import gc  # 引入垃圾回收模組
 import urllib3
 from flask import Flask
+import threading
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -18,6 +19,8 @@ from google import genai
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
+
+last_scraped_data = None
 
 def get_dynamic_pdf_url():
     chrome_options = Options()
@@ -71,6 +74,7 @@ def get_dynamic_pdf_url():
             driver.quit()
 
 def process_and_save():
+    global last_scraped_data
     gc.collect()  # 主動呼叫垃圾回收，釋放記憶體
     print("🚀 開始執行自動化流程...")
     
@@ -138,6 +142,9 @@ def process_and_save():
             "source_url": pdf_url,
             "update_time": datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
         }
+        last_scraped_data = result  # 將結果存入全域變數
+        gc.collect()
+        print("✅ 資料已存入暫存區")
         return result
     except Exception as e:
         print(f"❌ AI 處理失敗: {e}")
@@ -147,16 +154,30 @@ def process_and_save():
 def index():
     return "Course Scraper is online. Use /run to trigger."
 
+# @app.route('/run')
+# def run_scraper():
+#     try:
+#         data = process_and_save() 
+#         if data:
+#             return json.dumps(data, ensure_ascii=False), 200, {'Content-Type': 'application/json'}
+#         else:
+#             return "Failed to extract data", 500
+#     except Exception as e:
+#         return str(e), 500
+
+
 @app.route('/run')
 def run_scraper():
-    try:
-        data = process_and_save() 
-        if data:
-            return json.dumps(data, ensure_ascii=False), 200, {'Content-Type': 'application/json'}
-        else:
-            return "Failed to extract data", 500
-    except Exception as e:
-        return str(e), 500
+    # 改回非同步：立刻回傳，讓爬蟲在背景跑
+    threading.Thread(target=process_and_save).start()
+    return "Task Started", 202
+    
+@app.route('/get_data')
+def get_data():
+    global last_scraped_data
+    if last_scraped_data:
+        return json.dumps(last_scraped_data, ensure_ascii=False), 200, {'Content-Type': 'application/json'}
+    return "Data not ready yet", 404
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
