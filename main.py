@@ -45,6 +45,13 @@ def get_dynamic_pdf_url():
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--ignore-certificate-errors")
+    # --- 加入以下優化參數 ---
+    chrome_options.add_argument("--disable-gpu") # 免費版沒 GPU，關掉省資源
+    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_argument("--disable-extensions") # 禁用擴充功能
+    chrome_options.add_argument("--proxy-server='direct://'") # 禁用代理檢查
+    chrome_options.add_argument("--proxy-bypass-list=*")
+    chrome_options.add_argument("--blink-settings=imagesEnabled=false") # 禁用圖片載入 (非常省記憶體!)
     
     # 在 Docker 環境中，Chrome 路徑通常是固定的
     driver = webdriver.Chrome(options=chrome_options)
