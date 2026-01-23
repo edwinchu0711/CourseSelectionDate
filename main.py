@@ -2,6 +2,7 @@ import os
 import json
 import time
 import requests
+import gc  # 引入垃圾回收模組
 import urllib3
 from flask import Flask
 from selenium import webdriver
@@ -70,6 +71,7 @@ def get_dynamic_pdf_url():
             driver.quit()
 
 def process_and_save():
+    gc.collect()  # 主動呼叫垃圾回收，釋放記憶體
     print("🚀 開始執行自動化流程...")
     
     # 1. 抓取 PDF URL
